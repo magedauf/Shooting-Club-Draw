@@ -45,7 +45,7 @@ master_names = load_names()
 st.set_page_config(page_title="Shooting Club Draw", page_icon="🦆", layout="wide")
 
 bg_url = "https://raw.githubusercontent.com/magedauf/Shooting-Club-Draw/main/bg.jpg"
-bg_opacity = state.get("bg_opacity", 0.5)
+bg_opacity = state.get("bg_opacity", 0.12) # Matches your screenshot setting
 
 st.markdown(f"""
     <style>
@@ -87,22 +87,26 @@ if is_super:
 if is_admin:
     st.sidebar.divider()
     if st.sidebar.button("🔄 Initialize New Draw"):
-        # CLEAR DATA + INCREMENT RESET COUNT TO KILL SIDEBAR WIDGET CACHE
+        # 1. Clear the persistent file
         state["winners"] = []
         state["participants"] = []
         state["is_drawing"] = False
         state["last_init"] = get_local_time()
         state["reset_count"] = state.get("reset_count", 0) + 1
         save_state(state)
+        
+        # 2. CLEAR ALL SESSION STATE (The "Nuclear" Option)
+        # This removes everything from the browser's temporary memory
+        for key in st.session_state.keys():
+            del st.session_state[key]
+            
         st.rerun()
 
     if not state.get("winners") and not state.get("is_drawing"):
         st.sidebar.subheader("📝 Round Setup")
-        # We use reset_count in the key so the box clears when you hit Initialize
         current_key = f"contestants_{state.get('reset_count', 0)}"
         contestants = st.sidebar.multiselect("Select Contestants", options=master_names, key=current_key)
         
-        # Save selection to state for visitor preview
         if contestants != state.get("participants"):
             state["participants"] = contestants
             save_state(state)
@@ -154,11 +158,12 @@ else:
         </div>
     """, unsafe_allow_html=True)
     
-    # Only show if the Admin has actually selected people in the sidebar
+    # Only show if participants exist and the list isn't empty
     if state.get("participants") and len(state["participants"]) > 0:
         st.markdown("---")
         with st.expander("Current Round Contestants", expanded=True):
             st.write(", ".join(state["participants"]))
 
+# Slow refresh for visitors
 time.sleep(10)
 st.rerun()
