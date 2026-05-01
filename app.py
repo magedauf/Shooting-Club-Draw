@@ -3,7 +3,8 @@ import random
 import json
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
+import pytz # New library for accurate time
 
 # --- Persistence ---
 STATE_FILE = "raffle_state.json"
@@ -29,10 +30,11 @@ def load_names():
             return [line.strip() for line in f.readlines() if line.strip()]
     return []
 
-# Helper function for UTC+3 Time
+# Helper function for exact Cairo Time (UTC+3)
 def get_local_time():
-    # Streamlit Cloud servers are usually UTC, so we add 3 hours
-    local_now = datetime.utcnow() + timedelta(hours=3)
+    # This forces the app to use Cairo's timezone regardless of where the server is
+    cairo_tz = pytz.timezone('Africa/Cairo')
+    local_now = datetime.now(cairo_tz)
     return local_now.strftime("%A, %B %d, %Y | %H:%M:%S")
 
 state = load_state()
@@ -90,7 +92,7 @@ if is_admin:
             "winners": [],
             "participants": [],
             "is_drawing": False,
-            "last_init": get_local_time(), # Uses the UTC+3 function
+            "last_init": get_local_time(), 
             "bg_opacity": state["bg_opacity"]
         }
         save_state(new_state)
