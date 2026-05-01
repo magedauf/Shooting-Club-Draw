@@ -17,7 +17,7 @@ def load_state():
                 return json.load(f)
             except:
                 pass
-    return {"winners": [], "bg_opacity": 0.5, "is_drawing": False, "participants": [], "last_init": "", "reset_count": 0}
+    return {"winners": [], "bg_opacity": 0.12, "is_drawing": False, "participants": [], "last_init": "", "reset_count": 0}
 
 def save_state(state):
     with open(STATE_FILE, "w") as f:
@@ -38,6 +38,7 @@ def get_local_time():
         local_now = datetime.utcnow() + timedelta(hours=3)
     return local_now.strftime("%A, %B %d, %Y | %H:%M:%S")
 
+# --- INITIALIZE APP STATE ---
 state = load_state()
 master_names = load_names()
 
@@ -45,7 +46,7 @@ master_names = load_names()
 st.set_page_config(page_title="Shooting Club Draw", page_icon="🦆", layout="wide")
 
 bg_url = "https://raw.githubusercontent.com/magedauf/Shooting-Club-Draw/main/bg.jpg"
-bg_opacity = state.get("bg_opacity", 0.12) # Matches your screenshot setting
+bg_opacity = state.get("bg_opacity", 0.12)
 
 st.markdown(f"""
     <style>
@@ -76,18 +77,11 @@ pwd = st.sidebar.text_input("Access Key", type="password")
 is_super = (access == "Super Admin" and pwd == "maged_super_2026")
 is_admin = (access == "Admin" and pwd == "team_admin_2026") or is_super
 
-if is_super:
-    st.sidebar.subheader("🎨 Visual Settings")
-    new_opacity = st.sidebar.slider("Background Visibility", 0.0, 1.0, float(state.get("bg_opacity", 0.5)))
-    if new_opacity != state["bg_opacity"]:
-        state["bg_opacity"] = new_opacity
-        save_state(state)
-        st.rerun()
-
+# --- Reset Logic ---
 if is_admin:
     st.sidebar.divider()
     if st.sidebar.button("🔄 Initialize New Draw"):
-        # 1. Clear the persistent file
+        # Reset the persistent file
         state["winners"] = []
         state["participants"] = []
         state["is_drawing"] = False
@@ -95,29 +89,31 @@ if is_admin:
         state["reset_count"] = state.get("reset_count", 0) + 1
         save_state(state)
         
-        # 2. CLEAR ALL SESSION STATE (The "Nuclear" Option)
-        # This removes everything from the browser's temporary memory
-        for key in st.session_state.keys():
-            del st.session_state[key]
-            
+        # Reset the local session memory
+        st.session_state.clear()
         st.rerun()
 
+# --- Round Logic ---
+if is_admin:
     if not state.get("winners") and not state.get("is_drawing"):
         st.sidebar.subheader("📝 Round Setup")
-        current_key = f"contestants_{state.get('reset_count', 0)}"
-        contestants = st.sidebar.multiselect("Select Contestants", options=master_names, key=current_key)
         
-        if contestants != state.get("participants"):
-            state["participants"] = contestants
-            save_state(state)
+        # Use a dynamic key so the widget itself resets
+        current_key = f"contestants_{state.get('reset_count', 0)}"
+        selected_names = st.sidebar.multiselect("Select Contestants", options=master_names, key=current_key)
+        
+        # CRITICAL: We only update the state participants if names are actually selected
+        # If the multiselect is empty, participants must be empty.
+        state["participants"] = selected_names
+        save_state(state)
 
         num_winners = st.sidebar.selectbox("Number of Winners", range(1, 11), index=0, key=f"winners_{state.get('reset_count', 0)}")
         
         if st.sidebar.button("🔥 EXECUTE DRAW"):
-            if contestants:
+            if selected_names:
                 state["is_drawing"] = True
                 save_state(state)
-                picked = random.sample(contestants, min(num_winners, len(contestants)))
+                picked = random.sample(selected_names, min(num_winners, len(selected_names)))
                 state["winners"] = picked
                 state["is_drawing"] = False
                 save_state(state)
@@ -126,11 +122,11 @@ if is_admin:
 # --- Main Interface ---
 st.title("🦆 Shooting Club Draw")
 
-# Container for winner display
-winner_zone = st.empty()
+# Dedicated zone for drawing/winners
+main_zone = st.empty()
 
 if state.get("is_drawing"):
-    with winner_zone.container():
+    with main_zone.container():
         st.markdown("<div style='height: 100px;'></div>", unsafe_allow_html=True)
         st.header("🥁 DRUMROLL... SHUFFLING ENTRIES!")
         st.spinner("The hunt is on...")
@@ -138,7 +134,7 @@ if state.get("is_drawing"):
         st.rerun()
 
 elif state.get("winners"):
-    with winner_zone.container():
+    with main_zone.container():
         st.header("🏆 The Official Winners")
         for i, winner in enumerate(state["winners"]):
             st.subheader(f"Rank #{i+1}: **{winner}**")
@@ -150,7 +146,8 @@ elif state.get("winners"):
             st.write(", ".join(state["participants"]))
 
 else:
-    winner_zone.empty()
+    # This wipes the winner zone entirely if there's no active draw
+    main_zone.empty()
     st.markdown(f"""
         <div class="welcome-container">
             <h1 style="font-size: 80px; margin-bottom: 0;">Welcome To The Draw</h1>
@@ -158,12 +155,12 @@ else:
         </div>
     """, unsafe_allow_html=True)
     
-    # Only show if participants exist and the list isn't empty
+    # Only show the expander if there are actual participants in the list
     if state.get("participants") and len(state["participants"]) > 0:
         st.markdown("---")
         with st.expander("Current Round Contestants", expanded=True):
             st.write(", ".join(state["participants"]))
 
-# Slow refresh for visitors
-time.sleep(10)
+# Constant check for updates
+time.sleep(5)
 st.rerun()
