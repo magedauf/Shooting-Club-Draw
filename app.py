@@ -41,7 +41,7 @@ def get_local_time():
 state = load_state()
 master_names = load_names()
 
-# --- Custom Styling ---
+# --- Custom Styling & Layout ---
 st.set_page_config(page_title="Shooting Club", page_icon="🦆", layout="centered")
 
 bg_url = "https://raw.githubusercontent.com/magedauf/Shooting-Club-Draw/main/bg.jpg"
@@ -56,8 +56,20 @@ st.markdown(f"""
         background-size: cover; background-position: center; background-attachment: fixed; color: #ffffff;
     }}
     
+    /* Top Title Styling: Centered and Responsive */
+    .top-title {{
+        text-align: center;
+        width: 100%;
+        font-size: 1.8rem !important;
+        font-weight: bold;
+        padding-top: 1.5rem;
+        padding-bottom: 0.5rem;
+        text-shadow: 2px 2px 5px #000000;
+        letter-spacing: 1px;
+    }}
+
     .block-container {{
-        padding-top: 3.5rem !important;
+        padding-top: 0rem !important;
         padding-bottom: 0rem !important;
     }}
 
@@ -73,8 +85,8 @@ st.markdown(f"""
         text-align: center;
     }}
     
-    h1 {{ font-size: 2.1rem !important; margin-bottom: 0px !important; text-shadow: 2px 2px 4px #000000; }}
-    .time-text {{ font-size: 1rem !important; opacity: 0.8; margin-top: 10px; }}
+    .welcome-main-text {{ font-size: 1.9rem !important; font-weight: bold; margin-bottom: 0px !important; text-shadow: 2px 2px 4px #000000; }}
+    .time-text {{ font-size: 0.95rem !important; opacity: 0.8; margin-top: 8px; }}
     
     .stExpander {{ background-color: rgba(255,255,255,0.05) !important; border: none !important; }}
     </style>
@@ -118,7 +130,9 @@ if is_admin:
                 st.rerun()
 
 # --- Main Interface ---
-st.title("🦆 Shooting Club")
+
+# Custom Centered Title
+st.markdown('<div class="top-title">🦆 SHOOTING CLUB 🦆</div>', unsafe_allow_html=True)
 
 main_zone = st.empty()
 
@@ -141,10 +155,10 @@ elif state.get("winners"):
         with st.expander("Entry List"):
             st.write(", ".join(state["participants"]))
 else:
-    # Updated text casing as requested
+    # Welcome Screen
     st.markdown(f"""
         <div class="welcome-container">
-            <h1>Welcome To The DRAW</h1>
+            <div class="welcome-main-text">Welcome To The DRAW</div>
             <p class="time-text">{state.get('last_init', '')}</p>
         </div>
     """, unsafe_allow_html=True)
