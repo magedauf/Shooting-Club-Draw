@@ -122,9 +122,16 @@ if is_admin:
         state["winners"], state["participants"], state["is_drawing"] = [], [], False
         state["winners_shown_at"] = None
         state["last_init"] = get_local_time()
-        state["reset_count"] = state.get("reset_count", 0) + 1
+        new_reset_count = state.get("reset_count", 0) + 1
+        state["reset_count"] = new_reset_count
         save_state(state)
-        st.markdown('<script>window.parent.location.reload();</script>', unsafe_allow_html=True)
+        # Clear the multiselect and selectbox from Streamlit's session state
+        # so they don't re-populate participants on the next render
+        old_key = f"contestants_{new_reset_count - 1}"
+        old_win_key = f"win_{new_reset_count - 1}"
+        for k in [old_key, old_win_key]:
+            if k in st.session_state:
+                del st.session_state[k]
         st.rerun()
 
     if not state.get("winners") and not state.get("is_drawing"):
@@ -177,10 +184,18 @@ elif state.get("winners"):
     if winners_shown_at:
         elapsed = time.time() - winners_shown_at
         if elapsed >= 60:
+            old_reset = state.get("reset_count", 0)
+            new_reset = old_reset + 1
             state["winners"] = []
             state["is_drawing"] = False
             state["winners_shown_at"] = None
+            state["participants"] = []
+            state["reset_count"] = new_reset
             save_state(state)
+            # Clear stale multiselect and selectbox from session state
+            for k in [f"contestants_{old_reset}", f"win_{old_reset}"]:
+                if k in st.session_state:
+                    del st.session_state[k]
             st.rerun()
 
     with main_zone.container():
