@@ -3,6 +3,7 @@ import random
 import json
 import os
 import time
+from datetime import datetime
 
 # --- Persistence ---
 STATE_FILE = "raffle_state.json"
@@ -11,8 +12,11 @@ NAMES_FILE = "names.txt"
 def load_state():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r") as f:
-            return json.load(f)
-    return {"winners": [], "bg_opacity": 0.5, "is_drawing": False, "participants": []}
+            try:
+                return json.load(f)
+            except:
+                pass
+    return {"winners": [], "bg_opacity": 0.5, "is_drawing": False, "participants": [], "last_init": ""}
 
 def save_state(state):
     with open(STATE_FILE, "w") as f:
@@ -28,15 +32,14 @@ state = load_state()
 master_names = load_names()
 
 # --- Custom Styling & Branding ---
-st.set_page_config(page_title="Shooting Club Draw", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="Shooting Club Draw", page_icon="🦆", layout="wide")
 
-# This link pulls directly from your public GitHub repository
 bg_url = "https://raw.githubusercontent.com/magedauf/Shooting-Club-Draw/main/bg.jpg"
 bg_opacity = state.get("bg_opacity", 0.5)
 
 st.markdown(f"""
     <style>
-    /* Main background color under the image: Black */
+    /* Main background */
     .stApp {{
         background-color: #000000;
         background: linear-gradient(rgba(0, 0, 0, {1 - bg_opacity}), rgba(0, 0, 0, {1 - bg_opacity})), 
@@ -47,31 +50,26 @@ st.markdown(f"""
         color: #ffffff;
     }}
     
-    /* Sidebar color: Dark Grey */
+    /* Sidebar: Dark Grey */
     [data-testid="stSidebar"] {{
         background-color: #2c2c2c;
         color: #ffffff;
     }}
 
-    /* Ensuring labels and text in sidebar are white */
     [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {{
         color: #ffffff !important;
     }}
 
-    /* Styling the dropdowns and inputs for visibility */
-    div[data-baseweb="select"] > div {{
-        background-color: #3d3d3d;
-        color: white;
+    /* Welcome Screen Styling */
+    .welcome-container {{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 60vh;
+        text-align: center;
     }}
     
-    /* Styling info/success boxes for dark theme */
-    .stAlert {{
-        background-color: rgba(255, 255, 255, 0.1);
-        color: #ffffff;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }}
-
-    /* Header styling */
     h1, h2, h3 {{
         color: #ffffff !important;
         text-shadow: 2px 2px 4px #000000;
@@ -90,7 +88,7 @@ pwd = st.sidebar.text_input("Access Key", type="password")
 is_super = (access == "Super Admin" and pwd == "maged_super_2026")
 is_admin = (access == "Admin" and pwd == "team_admin_2026") or is_super
 
-# --- Super Admin: Styling Controls ---
+# --- Super Admin Controls ---
 if is_super:
     st.sidebar.subheader("🎨 Visual Settings")
     new_opacity = st.sidebar.slider("Background Visibility", 0.0, 1.0, float(state.get("bg_opacity", 0.5)))
@@ -99,31 +97,29 @@ if is_super:
         save_state(state)
         st.rerun()
 
-# --- Admin: Raffle Management ---
+# --- Admin Controls ---
 if is_admin:
     st.sidebar.divider()
     if st.sidebar.button("🔄 Initialize New Draw"):
         state["winners"] = []
         state["is_drawing"] = False
         state["participants"] = []
+        # Update timestamp for the Welcome Screen
+        state["last_init"] = datetime.now().strftime("%A, %B %d, %Y | %H:%M:%S")
         save_state(state)
         st.rerun()
 
-    if not state["winners"]:
+    if not state["winners"] and not state["is_drawing"]:
         st.sidebar.subheader("📝 Round Setup")
         contestants = st.sidebar.multiselect("Select Contestants", options=master_names, default=master_names)
         num_winners = st.sidebar.selectbox("Number of Winners", range(1, 11), index=0)
         
         if st.sidebar.button("🔥 EXECUTE DRAW"):
             if contestants:
-                # 1. Set drawing state for visitors
                 state["is_drawing"] = True
                 save_state(state)
-                
-                # 2. Pick unique winners (random.sample avoids duplicates)
+                # Randomize
                 picked = random.sample(contestants, min(num_winners, len(contestants)))
-                
-                # 3. Save finalized list and stop drawing state
                 state["winners"] = picked
                 state["participants"] = contestants
                 state["is_drawing"] = False
@@ -131,30 +127,40 @@ if is_admin:
                 st.rerun()
 
 # --- Main Interface ---
-st.title("🏹 Shooting Club Draw")
+# 1. Title with Duck Emoji
+st.title("🦆 Shooting Club Draw")
 
+# 2. Main Logic States
 if state.get("is_drawing"):
-    st.header("🥁 DRUMROLL... SHUFFLING NAMES!")
-    st.spinner("Randomizing entries...")
+    st.markdown("<div style='height: 200px;'></div>", unsafe_allow_html=True)
+    st.header("🥁 DRUMROLL... SHUFFLING ENTRIES!")
+    st.spinner("The hunt is on...")
     time.sleep(2)
     st.rerun()
 
 elif state["winners"]:
     st.header("🏆 The Official Winners")
-    # Sequential reveal for suspense starting from Rank #1
     for i, winner in enumerate(state["winners"]):
         st.subheader(f"Rank #{i+1}: **{winner}**")
-        time.sleep(1.2) # Suspension pause
-        st.balloons()
+        time.sleep(1.2)
+        # 3. Premium falling particles (Snow used as confetti)
+        st.snow() 
     
-    with st.expander("Show Entry List for this Round"):
+    with st.expander("Show Entry List"):
         st.write(", ".join(state["participants"]))
 else:
-    st.info("👋 Welcome! Please stay on this page. The draw will begin shortly.")
+    # 4. Centered Welcome Screen
+    st.markdown(f"""
+        <div class="welcome-container">
+            <h1 style="font-size: 80px; margin-bottom: 0;">Welcome To The Draw</h1>
+            <p style="font-size: 30px; opacity: 0.7; font-weight: 300;">{state.get('last_init', 'Ready to Begin')}</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
     if master_names:
         with st.expander("View Registered Members"):
             st.write(", ".join(master_names))
 
-# Auto-refresh loop for visitors (every 10 seconds)
+# Auto-refresh loop
 time.sleep(10)
 st.rerun()
