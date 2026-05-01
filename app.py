@@ -3,7 +3,7 @@ import random
 import json
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 
 # --- Persistence ---
@@ -29,22 +29,19 @@ def load_names():
             return [line.strip() for line in f.readlines() if line.strip()]
     return []
 
-# --- ULTIMATE TIMEZONE FIX ---
 def get_local_time():
     try:
-        # Strategy A: Use pytz for Africa/Cairo
         cairo_tz = pytz.timezone('Africa/Cairo')
         local_now = datetime.now(cairo_tz)
     except:
-        # Strategy B: Manual Offset if pytz fails (UTC + 3)
+        from datetime import timedelta
         local_now = datetime.utcnow() + timedelta(hours=3)
-    
     return local_now.strftime("%A, %B %d, %Y | %H:%M:%S")
 
 state = load_state()
 master_names = load_names()
 
-# --- Custom Styling & Branding ---
+# --- Custom Styling ---
 st.set_page_config(page_title="Shooting Club Draw", page_icon="🦆", layout="wide")
 
 bg_url = "https://raw.githubusercontent.com/magedauf/Shooting-Club-Draw/main/bg.jpg"
@@ -63,12 +60,12 @@ st.markdown(f"""
     }}
     [data-testid="stSidebar"] {{ background-color: #2c2c2c; color: #ffffff; }}
     [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {{ color: #ffffff !important; }}
-    .welcome-container {{ display: flex; flex-direction: column; align-items: center; justify-content: center; height: 50vh; text-align: center; }}
+    .welcome-container {{ display: flex; flex-direction: column; align-items: center; justify-content: center; height: 40vh; text-align: center; }}
     h1, h2, h3 {{ color: #ffffff !important; text-shadow: 2px 2px 4px #000000; }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- Sidebar & Authentication ---
+# --- Sidebar ---
 if os.path.exists("logo.png"):
     st.sidebar.image("logo.png", width=150)
 
@@ -79,7 +76,6 @@ pwd = st.sidebar.text_input("Access Key", type="password")
 is_super = (access == "Super Admin" and pwd == "maged_super_2026")
 is_admin = (access == "Admin" and pwd == "team_admin_2026") or is_super
 
-# --- Super Admin Controls ---
 if is_super:
     st.sidebar.subheader("🎨 Visual Settings")
     new_opacity = st.sidebar.slider("Background Visibility", 0.0, 1.0, float(state.get("bg_opacity", 0.5)))
@@ -88,30 +84,25 @@ if is_super:
         save_state(state)
         st.rerun()
 
-# --- Admin Controls ---
 if is_admin:
     st.sidebar.divider()
     if st.sidebar.button("🔄 Initialize New Draw"):
-        new_state = {
-            "winners": [],
-            "participants": [],
-            "is_drawing": False,
-            "last_init": get_local_time(), 
-            "bg_opacity": state["bg_opacity"]
-        }
-        save_state(new_state)
+        # CLEAR EVERYTHING IMMEDIATELY
+        state["winners"] = []
+        state["participants"] = []
+        state["is_drawing"] = False
+        state["last_init"] = get_local_time()
+        save_state(state)
         st.rerun()
 
     if not state.get("winners") and not state.get("is_drawing"):
         st.sidebar.subheader("📝 Round Setup")
         contestants = st.sidebar.multiselect("Select Contestants", options=master_names)
-        
         if contestants:
             state["participants"] = contestants
             save_state(state)
 
         num_winners = st.sidebar.selectbox("Number of Winners", range(1, 11), index=0)
-        
         if st.sidebar.button("🔥 EXECUTE DRAW"):
             if contestants:
                 state["is_drawing"] = True
@@ -125,25 +116,33 @@ if is_admin:
 # --- Main Interface ---
 st.title("🦆 Shooting Club Draw")
 
+# Container for winner display (so we can clear it)
+winner_zone = st.empty()
+
 if state.get("is_drawing"):
-    st.markdown("<div style='height: 200px;'></div>", unsafe_allow_html=True)
-    st.header("🥁 DRUMROLL... SHUFFLING ENTRIES!")
-    st.spinner("The hunt is on...")
-    time.sleep(2)
-    st.rerun()
+    with winner_zone.container():
+        st.markdown("<div style='height: 100px;'></div>", unsafe_allow_html=True)
+        st.header("🥁 DRUMROLL... SHUFFLING ENTRIES!")
+        st.spinner("The hunt is on...")
+        time.sleep(2)
+        st.rerun()
 
 elif state.get("winners"):
-    st.header("🏆 The Official Winners")
-    for i, winner in enumerate(state["winners"]):
-        st.subheader(f"Rank #{i+1}: **{winner}**")
-        time.sleep(1.2)
-        st.snow()
-    
-    st.markdown("---")
-    with st.expander("Show Entry List for this Round", expanded=True):
-        st.write(", ".join(state["participants"]))
+    # This block now lives inside a container that can be wiped
+    with winner_zone.container():
+        st.header("🏆 The Official Winners")
+        for i, winner in enumerate(state["winners"]):
+            st.subheader(f"Rank #{i+1}: **{winner}**")
+            time.sleep(1.2)
+            st.snow()
+        
+        st.markdown("---")
+        with st.expander("Show Entry List for this Round", expanded=True):
+            st.write(", ".join(state["participants"]))
 
 else:
+    # This wipes the winner_zone completely if no winners exist
+    winner_zone.empty()
     st.markdown(f"""
         <div class="welcome-container">
             <h1 style="font-size: 80px; margin-bottom: 0;">Welcome To The Draw</h1>
