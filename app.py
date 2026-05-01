@@ -56,11 +56,13 @@ st.markdown(f"""
         background-size: cover; background-position: center; background-attachment: fixed; color: #ffffff;
     }}
     
+    /* Pushes the entire content block down */
     .block-container {{
         padding-top: 3.5rem !important;
         padding-bottom: 0rem !important;
     }}
 
+    /* Top Title Styling: Extra top padding to push down one line */
     .top-title {{
         text-align: center;
         width: 100%;
@@ -88,34 +90,8 @@ st.markdown(f"""
     .time-text {{ font-size: 0.95rem !important; opacity: 0.8; margin-top: 8px; }}
     
     .stExpander {{ background-color: rgba(255,255,255,0.05) !important; border: none !important; }}
-
-    /* Flying Ducks Animation */
-    @keyframes fly {{
-        0% {{ transform: translateX(-100%) translateY(0px); opacity: 0; }}
-        20% {{ opacity: 0.5; }}
-        80% {{ opacity: 0.5; }}
-        100% {{ transform: translateX(200%) translateY(-50px); opacity: 0; }}
-    }}
-
-    .duck-fly {{
-        position: fixed;
-        font-size: 40px;
-        z-index: 999;
-        pointer-events: none;
-        animation: fly 4s linear infinite;
-        opacity: 0.5;
-    }}
     </style>
     """, unsafe_allow_html=True)
-
-# Function to trigger flying ducks
-def trigger_ducks():
-    duck_html = ""
-    for i in range(5):
-        top_pos = random.randint(10, 80)
-        delay = random.uniform(0, 2)
-        duck_html += f'<div class="duck-fly" style="top: {top_pos}%; animation-delay: {delay}s;">🦆</div>'
-    st.markdown(duck_html, unsafe_allow_html=True)
 
 # --- Sidebar ---
 if os.path.exists("logo.png"):
@@ -128,17 +104,7 @@ pwd = st.sidebar.text_input("Key", type="password")
 is_super = (access == "Super Admin" and pwd == "maged_super_2026")
 is_admin = (access == "Admin" and pwd == "team_admin_2026") or is_super
 
-# Super Admin Controls (Restored Background Slider)
-if is_super:
-    st.sidebar.subheader("🎨 Visual Settings")
-    new_opacity = st.sidebar.slider("Background Visibility", 0.0, 1.0, float(state.get("bg_opacity", 0.12)))
-    if new_opacity != state["bg_opacity"]:
-        state["bg_opacity"] = new_opacity
-        save_state(state)
-        st.rerun()
-
 if is_admin:
-    st.sidebar.divider()
     if st.sidebar.button("🔄 Initialize Draw"):
         state["winners"], state["participants"], state["is_drawing"] = [], [], False
         state["last_init"] = get_local_time()
@@ -165,6 +131,8 @@ if is_admin:
                 st.rerun()
 
 # --- Main Interface ---
+
+# Centered Title with ducks and top padding
 st.markdown('<div class="top-title">🦆 SHOOTING CLUB 🦆</div>', unsafe_allow_html=True)
 
 main_zone = st.empty()
@@ -180,15 +148,15 @@ if state.get("is_drawing"):
 elif state.get("winners"):
     with main_zone.container():
         st.header("🏆 Winners")
-        # Trigger the 50% opacity flying ducks
-        trigger_ducks()
         for i, winner in enumerate(state["winners"]):
             st.subheader(f"#{i+1}: {winner}")
             time.sleep(3.0) 
+            st.snow()
         
         with st.expander("Entry List"):
             st.write(", ".join(state["participants"]))
 else:
+    # Welcome Screen
     st.markdown(f"""
         <div class="welcome-container">
             <div class="welcome-main-text">Welcome To The DRAW</div>
