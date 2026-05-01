@@ -41,6 +41,16 @@ def get_local_time():
 state = load_state()
 master_names = load_names()
 
+# --- FIX 2: Auto-reset winners on fresh page load (visitor refresh) ---
+# We use a session_state flag: if this is a brand-new browser session,
+# clear winners so the app returns to the welcome screen.
+if "session_started" not in st.session_state:
+    st.session_state["session_started"] = True
+    # Clear winners and drawing flag so visitors see the welcome screen
+    state["winners"] = []
+    state["is_drawing"] = False
+    save_state(state)
+
 # --- Custom Styling & Layout ---
 st.set_page_config(page_title="Shooting Club", page_icon="🦆", layout="centered")
 
@@ -150,9 +160,9 @@ elif state.get("winners"):
         st.header("🏆 Winners")
         for i, winner in enumerate(state["winners"]):
             st.subheader(f"#{i+1}: {winner}")
-            time.sleep(3.0) 
-            st.snow()
-        
+            time.sleep(3.0)
+        # FIX 1: st.snow() removed — no more falling snowflakes
+
         with st.expander("Entry List"):
             st.write(", ".join(state["participants"]))
 else:
