@@ -17,7 +17,7 @@ def load_state():
                 return json.load(f)
             except:
                 pass
-    return {"winners": [], "bg_opacity": 0.5, "is_drawing": False, "participants": [], "last_init": ""}
+    return {"winners": [], "bg_opacity": 0.5, "is_drawing": False, "participants": [], "last_init": "", "reset_count": 0}
 
 def save_state(state):
     with open(STATE_FILE, "w") as f:
@@ -87,22 +87,28 @@ if is_super:
 if is_admin:
     st.sidebar.divider()
     if st.sidebar.button("🔄 Initialize New Draw"):
-        # CLEAR EVERYTHING IMMEDIATELY
+        # CLEAR DATA + INCREMENT RESET COUNT TO KILL SIDEBAR WIDGET CACHE
         state["winners"] = []
         state["participants"] = []
         state["is_drawing"] = False
         state["last_init"] = get_local_time()
+        state["reset_count"] = state.get("reset_count", 0) + 1
         save_state(state)
         st.rerun()
 
     if not state.get("winners") and not state.get("is_drawing"):
         st.sidebar.subheader("📝 Round Setup")
-        contestants = st.sidebar.multiselect("Select Contestants", options=master_names)
-        if contestants:
+        # We use reset_count in the key so the box clears when you hit Initialize
+        current_key = f"contestants_{state.get('reset_count', 0)}"
+        contestants = st.sidebar.multiselect("Select Contestants", options=master_names, key=current_key)
+        
+        # Save selection to state for visitor preview
+        if contestants != state.get("participants"):
             state["participants"] = contestants
             save_state(state)
 
-        num_winners = st.sidebar.selectbox("Number of Winners", range(1, 11), index=0)
+        num_winners = st.sidebar.selectbox("Number of Winners", range(1, 11), index=0, key=f"winners_{state.get('reset_count', 0)}")
+        
         if st.sidebar.button("🔥 EXECUTE DRAW"):
             if contestants:
                 state["is_drawing"] = True
@@ -116,7 +122,7 @@ if is_admin:
 # --- Main Interface ---
 st.title("🦆 Shooting Club Draw")
 
-# Container for winner display (so we can clear it)
+# Container for winner display
 winner_zone = st.empty()
 
 if state.get("is_drawing"):
@@ -128,7 +134,6 @@ if state.get("is_drawing"):
         st.rerun()
 
 elif state.get("winners"):
-    # This block now lives inside a container that can be wiped
     with winner_zone.container():
         st.header("🏆 The Official Winners")
         for i, winner in enumerate(state["winners"]):
@@ -141,7 +146,6 @@ elif state.get("winners"):
             st.write(", ".join(state["participants"]))
 
 else:
-    # This wipes the winner_zone completely if no winners exist
     winner_zone.empty()
     st.markdown(f"""
         <div class="welcome-container">
@@ -150,7 +154,8 @@ else:
         </div>
     """, unsafe_allow_html=True)
     
-    if state.get("participants"):
+    # Only show if the Admin has actually selected people in the sidebar
+    if state.get("participants") and len(state["participants"]) > 0:
         st.markdown("---")
         with st.expander("Current Round Contestants", expanded=True):
             st.write(", ".join(state["participants"]))
