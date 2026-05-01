@@ -56,21 +56,22 @@ st.markdown(f"""
         background-size: cover; background-position: center; background-attachment: fixed; color: #ffffff;
     }}
     
-    /* Top Title Styling: Centered and Responsive */
+    /* Pushes the entire content block down */
+    .block-container {{
+        padding-top: 3.5rem !important;
+        padding-bottom: 0rem !important;
+    }}
+
+    /* Top Title Styling: Extra top padding to push down one line */
     .top-title {{
         text-align: center;
         width: 100%;
         font-size: 1.8rem !important;
         font-weight: bold;
-        padding-top: 1.5rem;
+        padding-top: 2rem; 
         padding-bottom: 0.5rem;
         text-shadow: 2px 2px 5px #000000;
         letter-spacing: 1px;
-    }}
-
-    .block-container {{
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
     }}
 
     [data-testid="stSidebar"] {{ background-color: #2c2c2c; color: #ffffff; }}
@@ -131,7 +132,7 @@ if is_admin:
 
 # --- Main Interface ---
 
-# Custom Centered Title
+# Centered Title with ducks and top padding
 st.markdown('<div class="top-title">🦆 SHOOTING CLUB 🦆</div>', unsafe_allow_html=True)
 
 main_zone = st.empty()
@@ -163,7 +164,7 @@ else:
         </div>
     """, unsafe_allow_html=True)
     
-    if state.get("participants"):
+    if state.get("participants") and len(state["participants"]) > 0:
         with st.expander("Round Contestants", expanded=True):
             st.write(", ".join(state["participants"]))
 
