@@ -36,120 +36,130 @@ def get_local_time():
     except:
         from datetime import timedelta
         local_now = datetime.utcnow() + timedelta(hours=3)
-    return local_now.strftime("%A, %B %d, %Y | %H:%M:%S")
+    return local_now.strftime("%a, %b %d | %H:%M")
 
 state = load_state()
 master_names = load_names()
 
-# --- Custom Styling ---
-st.set_page_config(page_title="Shooting Club Draw", page_icon="🦆", layout="wide")
+# --- Mobile-First Custom Styling ---
+st.set_page_config(page_title="Shooting Club", page_icon="🦆", layout="centered")
 
 bg_url = "https://raw.githubusercontent.com/magedauf/Shooting-Club-Draw/main/bg.jpg"
 bg_opacity = state.get("bg_opacity", 0.12)
 
 st.markdown(f"""
     <style>
+    /* Main App Background */
     .stApp {{
         background-color: #000000;
         background: linear-gradient(rgba(0, 0, 0, {1 - bg_opacity}), rgba(0, 0, 0, {1 - bg_opacity})), 
                     url("{bg_url}");
         background-size: cover; background-position: center; background-attachment: fixed; color: #ffffff;
     }}
+    
+    /* Remove unnecessary padding at the top for mobile */
+    .block-container {{
+        padding-top: 1rem !important;
+        padding-bottom: 0rem !important;
+    }}
+
+    /* Sidebar: Dark Grey */
     [data-testid="stSidebar"] {{ background-color: #2c2c2c; color: #ffffff; }}
     [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {{ color: #ffffff !important; }}
-    .welcome-container {{ display: flex; flex-direction: column; align-items: center; justify-content: center; height: 40vh; text-align: center; }}
-    h1, h2, h3 {{ color: #ffffff !important; text-shadow: 2px 2px 4px #000000; }}
+
+    /* Mobile Welcome Container */
+    .welcome-container {{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 35vh; /* Reduced height for mobile */
+        text-align: center;
+    }}
+    
+    h1 {{ font-size: 2.2rem !important; margin-bottom: 0px !important; text-shadow: 2px 2px 4px #000000; }}
+    h2 {{ font-size: 1.5rem !important; text-shadow: 2px 2px 4px #000000; }}
+    h3 {{ font-size: 1.2rem !important; }}
+    
+    /* Shrink the entry list expander for mobile */
+    .stExpander {{ background-color: rgba(255,255,255,0.05) !important; border: none !important; }}
     </style>
     """, unsafe_allow_html=True)
 
 # --- Sidebar ---
 if os.path.exists("logo.png"):
-    st.sidebar.image("logo.png", width=150)
+    st.sidebar.image("logo.png", width=100) # Smaller logo for mobile sidebar
 
-st.sidebar.title("🎯 Control Panel")
-access = st.sidebar.selectbox("Access Level", ["Visitor", "Admin", "Super Admin"])
-pwd = st.sidebar.text_input("Access Key", type="password")
+st.sidebar.title("🎯 Control")
+access = st.sidebar.selectbox("Access", ["Visitor", "Admin", "Super Admin"])
+pwd = st.sidebar.text_input("Key", type="password")
 
 is_super = (access == "Super Admin" and pwd == "maged_super_2026")
 is_admin = (access == "Admin" and pwd == "team_admin_2026") or is_super
 
-# --- The Reset Logic with JavaScript Injection ---
 if is_admin:
-    st.sidebar.divider()
-    if st.sidebar.button("🔄 Initialize New Draw"):
-        # 1. Update the physical file to be empty
-        state["winners"] = []
-        state["participants"] = []
-        state["is_drawing"] = False
+    if st.sidebar.button("🔄 Initialize Draw"):
+        state["winners"], state["participants"], state["is_drawing"] = [], [], False
         state["last_init"] = get_local_time()
         state["reset_count"] = state.get("reset_count", 0) + 1
         save_state(state)
-        
-        # 2. Force the browser to refresh via JavaScript
+        # JavaScript hard refresh to clear browser ghosts
         st.markdown('<script>window.parent.location.reload();</script>', unsafe_allow_html=True)
         st.rerun()
 
-# --- Content Logic ---
-if is_admin:
     if not state.get("winners") and not state.get("is_drawing"):
-        st.sidebar.subheader("📝 Round Setup")
+        st.sidebar.subheader("📝 Setup")
         current_key = f"contestants_{state.get('reset_count', 0)}"
-        selected_names = st.sidebar.multiselect("Select Contestants", options=master_names, key=current_key)
-        
-        # Sync widget to state
+        selected_names = st.sidebar.multiselect("Names", options=master_names, key=current_key)
         state["participants"] = selected_names
         save_state(state)
-
-        num_winners = st.sidebar.selectbox("Number of Winners", range(1, 11), index=0, key=f"winners_{state.get('reset_count', 0)}")
         
-        if st.sidebar.button("🔥 EXECUTE DRAW"):
+        num_winners = st.sidebar.selectbox("Winners", range(1, 11), index=0, key=f"win_{state.get('reset_count', 0)}")
+        if st.sidebar.button("🔥 EXECUTE"):
             if selected_names:
                 state["is_drawing"] = True
                 save_state(state)
-                picked = random.sample(selected_names, min(num_winners, len(selected_names)))
-                state["winners"] = picked
+                state["winners"] = random.sample(selected_names, min(num_winners, len(selected_names)))
                 state["is_drawing"] = False
                 save_state(state)
                 st.rerun()
 
 # --- Main Interface ---
-st.title("🦆 Shooting Club Draw")
+st.title("🦆 Shooting Club")
 
 main_zone = st.empty()
 
 if state.get("is_drawing"):
     with main_zone.container():
-        st.markdown("<div style='height: 100px;'></div>", unsafe_allow_html=True)
-        st.header("🥁 DRUMROLL... SHUFFLING ENTRIES!")
-        st.spinner("The hunt is on...")
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.header("🥁 SHUFFLING...")
+        st.spinner("Selecting...")
         time.sleep(2)
         st.rerun()
 
 elif state.get("winners"):
     with main_zone.container():
-        st.header("🏆 The Official Winners")
+        st.header("🏆 Winners")
         for i, winner in enumerate(state["winners"]):
-            st.subheader(f"Rank #{i+1}: **{winner}**")
-            time.sleep(1.2)
+            st.subheader(f"#{i+1}: {winner}")
+            time.sleep(3.0) # Increased interval to 3 seconds
             st.snow()
         
-        st.markdown("---")
-        with st.expander("Show Entry List for this Round", expanded=True):
+        with st.expander("Entry List"):
             st.write(", ".join(state["participants"]))
 else:
-    main_zone.empty()
+    # Welcome Screen optimized for mobile
     st.markdown(f"""
         <div class="welcome-container">
-            <h1 style="font-size: 80px; margin-bottom: 0;">Welcome To The Draw</h1>
-            <p style="font-size: 30px; opacity: 0.7;">{state.get('last_init', 'Ready to Begin')}</p>
+            <h1>Welcome</h1>
+            <p style="font-size: 1.1rem; opacity: 0.8; margin-top: 5px;">{state.get('last_init', '')}</p>
         </div>
     """, unsafe_allow_html=True)
     
-    if state.get("participants") and len(state["participants"]) > 0:
-        st.markdown("---")
-        with st.expander("Current Round Contestants", expanded=True):
+    if state.get("participants"):
+        with st.expander("Round Contestants", expanded=True):
             st.write(", ".join(state["participants"]))
 
-# Slow background refresh for visitors
+# Visitor Auto-Refresh
 time.sleep(10)
 st.rerun()
