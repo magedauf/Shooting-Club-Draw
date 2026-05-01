@@ -14,9 +14,6 @@ def load_state():
         with open(STATE_FILE, "r") as f:
             try:
                 data = json.load(f)
-                # Ensure all keys exist to prevent errors
-                if "winners" not in data: data["winners"] = []
-                if "participants" not in data: data["participants"] = []
                 return data
             except:
                 pass
@@ -31,6 +28,10 @@ def load_names():
         with open(NAMES_FILE, "r") as f:
             return [line.strip() for line in f.readlines() if line.strip()]
     return []
+
+# Initialize session state for immediate UI reset
+if 'refresh_trigger' not in st.session_state:
+    st.session_state.refresh_trigger = False
 
 state = load_state()
 master_names = load_names()
@@ -52,41 +53,15 @@ st.markdown(f"""
         background-attachment: fixed;
         color: #ffffff;
     }}
-    
-    [data-testid="stSidebar"] {{
-        background-color: #2c2c2c;
-        color: #ffffff;
-    }}
-
-    [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {{
-        color: #ffffff !important;
-    }}
-
-    .welcome-container {{
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 50vh;
-        text-align: center;
-    }}
-    
-    h1, h2, h3 {{
-        color: #ffffff !important;
-        text-shadow: 2px 2px 4px #000000;
-    }}
-
-    /* CSS to ensure columns for names look clean */
-    .name-grid {{
-        column-count: 3;
-        column-gap: 20px;
-    }}
+    [data-testid="stSidebar"] {{ background-color: #2c2c2c; color: #ffffff; }}
+    [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {{ color: #ffffff !important; }}
+    .welcome-container {{ display: flex; flex-direction: column; align-items: center; justify-content: center; height: 50vh; text-align: center; }}
+    h1, h2, h3 {{ color: #ffffff !important; text-shadow: 2px 2px 4px #000000; }}
     </style>
     """, unsafe_allow_html=True)
 
 # --- Sidebar & Authentication ---
 if os.path.exists("logo.png"):
-    # logo_container is used to make it half size (width=150 is roughly half standard sidebar width)
     st.sidebar.image("logo.png", width=150)
 
 st.sidebar.title("🎯 Control Panel")
@@ -109,27 +84,35 @@ if is_super:
 if is_admin:
     st.sidebar.divider()
     if st.sidebar.button("🔄 Initialize New Draw"):
-        # Explicitly empty everything to prevent "ghost" names from previous rounds
-        state["winners"] = []
-        state["participants"] = []
-        state["is_drawing"] = False
-        state["last_init"] = datetime.now().strftime("%A, %B %d, %Y | %H:%M:%S")
-        save_state(state)
+        # Immediate cleanup of the state file
+        new_state = {
+            "winners": [],
+            "participants": [],
+            "is_drawing": False,
+            "last_init": datetime.now().strftime("%A, %B %d, %Y | %H:%M:%S"),
+            "bg_opacity": state["bg_opacity"]
+        }
+        save_state(new_state)
+        # Force a rerun to clear the "ghost" elements
         st.rerun()
 
     if not state.get("winners") and not state.get("is_drawing"):
         st.sidebar.subheader("📝 Round Setup")
         contestants = st.sidebar.multiselect("Select Contestants", options=master_names)
+        
+        # Logic to show contestants list immediately after selection
+        if contestants:
+            state["participants"] = contestants
+            save_state(state)
+
         num_winners = st.sidebar.selectbox("Number of Winners", range(1, 11), index=0)
         
         if st.sidebar.button("🔥 EXECUTE DRAW"):
             if contestants:
                 state["is_drawing"] = True
                 save_state(state)
-                # Select winners
                 picked = random.sample(contestants, min(num_winners, len(contestants)))
                 state["winners"] = picked
-                state["participants"] = contestants
                 state["is_drawing"] = False
                 save_state(state)
                 st.rerun()
@@ -137,7 +120,7 @@ if is_admin:
 # --- Main Interface ---
 st.title("🦆 Shooting Club Draw")
 
-# Priority 1: Showing the active drawing animation
+# STATE 1: Shuffling Animation
 if state.get("is_drawing"):
     st.markdown("<div style='height: 200px;'></div>", unsafe_allow_html=True)
     st.header("🥁 DRUMROLL... SHUFFLING ENTRIES!")
@@ -145,20 +128,19 @@ if state.get("is_drawing"):
     time.sleep(2)
     st.rerun()
 
-# Priority 2: Showing Winners if the draw is finished
+# STATE 2: Displaying Winners (if they exist)
 elif state.get("winners"):
     st.header("🏆 The Official Winners")
-    # Sequential reveal
     for i, winner in enumerate(state["winners"]):
         st.subheader(f"Rank #{i+1}: **{winner}**")
-        # Balloons/Snow only trigger for the very first viewing
+        time.sleep(1.2)
         st.snow()
     
     st.markdown("---")
     with st.expander("Show Entry List for this Round", expanded=True):
         st.write(", ".join(state["participants"]))
 
-# Priority 3: Welcome Screen (Show if no winners exist)
+# STATE 3: Welcome Screen (Default)
 else:
     st.markdown(f"""
         <div class="welcome-container">
@@ -167,10 +149,10 @@ else:
         </div>
     """, unsafe_allow_html=True)
     
-    # "View Registered Members" removed as requested.
-    # Only show participants if they have been selected but not yet drawn.
+    # Show contestants list BEFORE the draw starts
     if state.get("participants"):
-        with st.expander("Show Entry List for this Round", expanded=True):
+        st.markdown("---")
+        with st.expander("Current Round Contestants", expanded=True):
             st.write(", ".join(state["participants"]))
 
 # Auto-refresh loop
