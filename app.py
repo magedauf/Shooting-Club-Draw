@@ -13,7 +13,11 @@ def load_state():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r") as f:
             try:
-                return json.load(f)
+                data = json.load(f)
+                # Ensure all keys exist to prevent errors
+                if "winners" not in data: data["winners"] = []
+                if "participants" not in data: data["participants"] = []
+                return data
             except:
                 pass
     return {"winners": [], "bg_opacity": 0.5, "is_drawing": False, "participants": [], "last_init": ""}
@@ -39,7 +43,6 @@ bg_opacity = state.get("bg_opacity", 0.5)
 
 st.markdown(f"""
     <style>
-    /* Main background */
     .stApp {{
         background-color: #000000;
         background: linear-gradient(rgba(0, 0, 0, {1 - bg_opacity}), rgba(0, 0, 0, {1 - bg_opacity})), 
@@ -50,7 +53,6 @@ st.markdown(f"""
         color: #ffffff;
     }}
     
-    /* Sidebar: Dark Grey */
     [data-testid="stSidebar"] {{
         background-color: #2c2c2c;
         color: #ffffff;
@@ -60,13 +62,12 @@ st.markdown(f"""
         color: #ffffff !important;
     }}
 
-    /* Welcome Screen Styling */
     .welcome-container {{
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        height: 60vh;
+        height: 50vh;
         text-align: center;
     }}
     
@@ -74,12 +75,19 @@ st.markdown(f"""
         color: #ffffff !important;
         text-shadow: 2px 2px 4px #000000;
     }}
+
+    /* CSS to ensure columns for names look clean */
+    .name-grid {{
+        column-count: 3;
+        column-gap: 20px;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
 # --- Sidebar & Authentication ---
 if os.path.exists("logo.png"):
-    st.sidebar.image("logo.png", use_container_width=True)
+    # logo_container is used to make it half size (width=150 is roughly half standard sidebar width)
+    st.sidebar.image("logo.png", width=150)
 
 st.sidebar.title("🎯 Control Panel")
 access = st.sidebar.selectbox("Access Level", ["Visitor", "Admin", "Super Admin"])
@@ -101,24 +109,24 @@ if is_super:
 if is_admin:
     st.sidebar.divider()
     if st.sidebar.button("🔄 Initialize New Draw"):
+        # Explicitly empty everything to prevent "ghost" names from previous rounds
         state["winners"] = []
-        state["is_drawing"] = False
         state["participants"] = []
-        # Update timestamp for the Welcome Screen
+        state["is_drawing"] = False
         state["last_init"] = datetime.now().strftime("%A, %B %d, %Y | %H:%M:%S")
         save_state(state)
         st.rerun()
 
-    if not state["winners"] and not state["is_drawing"]:
+    if not state.get("winners") and not state.get("is_drawing"):
         st.sidebar.subheader("📝 Round Setup")
-        contestants = st.sidebar.multiselect("Select Contestants", options=master_names, default=master_names)
+        contestants = st.sidebar.multiselect("Select Contestants", options=master_names)
         num_winners = st.sidebar.selectbox("Number of Winners", range(1, 11), index=0)
         
         if st.sidebar.button("🔥 EXECUTE DRAW"):
             if contestants:
                 state["is_drawing"] = True
                 save_state(state)
-                # Randomize
+                # Select winners
                 picked = random.sample(contestants, min(num_winners, len(contestants)))
                 state["winners"] = picked
                 state["participants"] = contestants
@@ -127,10 +135,9 @@ if is_admin:
                 st.rerun()
 
 # --- Main Interface ---
-# 1. Title with Duck Emoji
 st.title("🦆 Shooting Club Draw")
 
-# 2. Main Logic States
+# Priority 1: Showing the active drawing animation
 if state.get("is_drawing"):
     st.markdown("<div style='height: 200px;'></div>", unsafe_allow_html=True)
     st.header("🥁 DRUMROLL... SHUFFLING ENTRIES!")
@@ -138,28 +145,33 @@ if state.get("is_drawing"):
     time.sleep(2)
     st.rerun()
 
-elif state["winners"]:
+# Priority 2: Showing Winners if the draw is finished
+elif state.get("winners"):
     st.header("🏆 The Official Winners")
+    # Sequential reveal
     for i, winner in enumerate(state["winners"]):
         st.subheader(f"Rank #{i+1}: **{winner}**")
-        time.sleep(1.2)
-        # 3. Premium falling particles (Snow used as confetti)
-        st.snow() 
+        # Balloons/Snow only trigger for the very first viewing
+        st.snow()
     
-    with st.expander("Show Entry List"):
+    st.markdown("---")
+    with st.expander("Show Entry List for this Round", expanded=True):
         st.write(", ".join(state["participants"]))
+
+# Priority 3: Welcome Screen (Show if no winners exist)
 else:
-    # 4. Centered Welcome Screen
     st.markdown(f"""
         <div class="welcome-container">
             <h1 style="font-size: 80px; margin-bottom: 0;">Welcome To The Draw</h1>
-            <p style="font-size: 30px; opacity: 0.7; font-weight: 300;">{state.get('last_init', 'Ready to Begin')}</p>
+            <p style="font-size: 30px; opacity: 0.7;">{state.get('last_init', 'Ready to Begin')}</p>
         </div>
     """, unsafe_allow_html=True)
     
-    if master_names:
-        with st.expander("View Registered Members"):
-            st.write(", ".join(master_names))
+    # "View Registered Members" removed as requested.
+    # Only show participants if they have been selected but not yet drawn.
+    if state.get("participants"):
+        with st.expander("Show Entry List for this Round", expanded=True):
+            st.write(", ".join(state["participants"]))
 
 # Auto-refresh loop
 time.sleep(10)
