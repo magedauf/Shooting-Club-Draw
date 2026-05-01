@@ -46,9 +46,12 @@ master_names = load_names()
 # clear winners so the app returns to the welcome screen.
 if "session_started" not in st.session_state:
     st.session_state["session_started"] = True
-    # Clear winners and drawing flag so visitors see the welcome screen
+    # Clear winners, drawing flag, and participants on fresh page load
     state["winners"] = []
     state["is_drawing"] = False
+    state["participants"] = []
+    # Bump reset_count so multiselect and selectbox keys change → widgets reset
+    state["reset_count"] = state.get("reset_count", 0) + 1
     save_state(state)
 
 # --- Custom Styling & Layout ---
@@ -140,6 +143,18 @@ if is_admin:
                 state["is_drawing"] = False
                 save_state(state)
                 st.rerun()
+
+if is_super:
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🎨 Background")
+    new_opacity = st.sidebar.slider(
+        "Image Opacity", min_value=0.0, max_value=1.0,
+        value=float(state.get("bg_opacity", 0.12)), step=0.01
+    )
+    if new_opacity != state.get("bg_opacity"):
+        state["bg_opacity"] = new_opacity
+        save_state(state)
+        st.rerun()
 
 # --- Main Interface ---
 
