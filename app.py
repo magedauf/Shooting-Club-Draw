@@ -3,7 +3,7 @@ import random
 import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- Persistence ---
 STATE_FILE = "raffle_state.json"
@@ -29,9 +29,11 @@ def load_names():
             return [line.strip() for line in f.readlines() if line.strip()]
     return []
 
-# Initialize session state for immediate UI reset
-if 'refresh_trigger' not in st.session_state:
-    st.session_state.refresh_trigger = False
+# Helper function for UTC+3 Time
+def get_local_time():
+    # Streamlit Cloud servers are usually UTC, so we add 3 hours
+    local_now = datetime.utcnow() + timedelta(hours=3)
+    return local_now.strftime("%A, %B %d, %Y | %H:%M:%S")
 
 state = load_state()
 master_names = load_names()
@@ -84,23 +86,20 @@ if is_super:
 if is_admin:
     st.sidebar.divider()
     if st.sidebar.button("🔄 Initialize New Draw"):
-        # Immediate cleanup of the state file
         new_state = {
             "winners": [],
             "participants": [],
             "is_drawing": False,
-            "last_init": datetime.now().strftime("%A, %B %d, %Y | %H:%M:%S"),
+            "last_init": get_local_time(), # Uses the UTC+3 function
             "bg_opacity": state["bg_opacity"]
         }
         save_state(new_state)
-        # Force a rerun to clear the "ghost" elements
         st.rerun()
 
     if not state.get("winners") and not state.get("is_drawing"):
         st.sidebar.subheader("📝 Round Setup")
         contestants = st.sidebar.multiselect("Select Contestants", options=master_names)
         
-        # Logic to show contestants list immediately after selection
         if contestants:
             state["participants"] = contestants
             save_state(state)
@@ -120,7 +119,6 @@ if is_admin:
 # --- Main Interface ---
 st.title("🦆 Shooting Club Draw")
 
-# STATE 1: Shuffling Animation
 if state.get("is_drawing"):
     st.markdown("<div style='height: 200px;'></div>", unsafe_allow_html=True)
     st.header("🥁 DRUMROLL... SHUFFLING ENTRIES!")
@@ -128,7 +126,6 @@ if state.get("is_drawing"):
     time.sleep(2)
     st.rerun()
 
-# STATE 2: Displaying Winners (if they exist)
 elif state.get("winners"):
     st.header("🏆 The Official Winners")
     for i, winner in enumerate(state["winners"]):
@@ -140,7 +137,6 @@ elif state.get("winners"):
     with st.expander("Show Entry List for this Round", expanded=True):
         st.write(", ".join(state["participants"]))
 
-# STATE 3: Welcome Screen (Default)
 else:
     st.markdown(f"""
         <div class="welcome-container">
@@ -149,12 +145,10 @@ else:
         </div>
     """, unsafe_allow_html=True)
     
-    # Show contestants list BEFORE the draw starts
     if state.get("participants"):
         st.markdown("---")
         with st.expander("Current Round Contestants", expanded=True):
             st.write(", ".join(state["participants"]))
 
-# Auto-refresh loop
 time.sleep(10)
 st.rerun()
