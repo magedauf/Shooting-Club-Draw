@@ -42,7 +42,7 @@ state = load_state()
 master_names = load_names()
 
 # --- Mobile-First Custom Styling ---
-st.set_page_config(page_title="Shooting Club", page_icon="🦆", layout="centered")
+st.set_page_config(page_title="Shooting Club Draw", page_icon="🦆", layout="centered")
 
 bg_url = "https://raw.githubusercontent.com/magedauf/Shooting-Club-Draw/main/bg.jpg"
 bg_opacity = state.get("bg_opacity", 0.12)
