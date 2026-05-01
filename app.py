@@ -56,7 +56,6 @@ st.markdown(f"""
         background-size: cover; background-position: center; background-attachment: fixed; color: #ffffff;
     }}
     
-    /* Pushes everything down one line */
     .block-container {{
         padding-top: 3.5rem !important;
         padding-bottom: 0rem !important;
@@ -142,10 +141,10 @@ elif state.get("winners"):
         with st.expander("Entry List"):
             st.write(", ".join(state["participants"]))
 else:
-    # Welcome Screen: Header + Full Date/Time
+    # Updated text casing as requested
     st.markdown(f"""
         <div class="welcome-container">
-            <h1>Welcome to the draw</h1>
+            <h1>Welcome To The DRAW</h1>
             <p class="time-text">{state.get('last_init', '')}</p>
         </div>
     """, unsafe_allow_html=True)
