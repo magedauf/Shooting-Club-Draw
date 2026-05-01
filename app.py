@@ -36,20 +36,19 @@ def get_local_time():
     except:
         from datetime import timedelta
         local_now = datetime.utcnow() + timedelta(hours=3)
-    return local_now.strftime("%a, %b %d | %H:%M")
+    return local_now.strftime("%A, %B %d | %H:%M")
 
 state = load_state()
 master_names = load_names()
 
-# --- Mobile-First Custom Styling ---
-st.set_page_config(page_title="Shooting Club Draw", page_icon="🦆", layout="centered")
+# --- Custom Styling ---
+st.set_page_config(page_title="Shooting Club", page_icon="🦆", layout="centered")
 
 bg_url = "https://raw.githubusercontent.com/magedauf/Shooting-Club-Draw/main/bg.jpg"
 bg_opacity = state.get("bg_opacity", 0.12)
 
 st.markdown(f"""
     <style>
-    /* Main App Background */
     .stApp {{
         background-color: #000000;
         background: linear-gradient(rgba(0, 0, 0, {1 - bg_opacity}), rgba(0, 0, 0, {1 - bg_opacity})), 
@@ -57,38 +56,34 @@ st.markdown(f"""
         background-size: cover; background-position: center; background-attachment: fixed; color: #ffffff;
     }}
     
-    /* Remove unnecessary padding at the top for mobile */
+    /* Pushes everything down one line */
     .block-container {{
-        padding-top: 1rem !important;
+        padding-top: 3.5rem !important;
         padding-bottom: 0rem !important;
     }}
 
-    /* Sidebar: Dark Grey */
     [data-testid="stSidebar"] {{ background-color: #2c2c2c; color: #ffffff; }}
     [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {{ color: #ffffff !important; }}
 
-    /* Mobile Welcome Container */
     .welcome-container {{
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        height: 35vh; /* Reduced height for mobile */
+        height: 30vh;
         text-align: center;
     }}
     
-    h1 {{ font-size: 2.2rem !important; margin-bottom: 0px !important; text-shadow: 2px 2px 4px #000000; }}
-    h2 {{ font-size: 1.5rem !important; text-shadow: 2px 2px 4px #000000; }}
-    h3 {{ font-size: 1.2rem !important; }}
+    h1 {{ font-size: 2.1rem !important; margin-bottom: 0px !important; text-shadow: 2px 2px 4px #000000; }}
+    .time-text {{ font-size: 1rem !important; opacity: 0.8; margin-top: 10px; }}
     
-    /* Shrink the entry list expander for mobile */
     .stExpander {{ background-color: rgba(255,255,255,0.05) !important; border: none !important; }}
     </style>
     """, unsafe_allow_html=True)
 
 # --- Sidebar ---
 if os.path.exists("logo.png"):
-    st.sidebar.image("logo.png", width=100) # Smaller logo for mobile sidebar
+    st.sidebar.image("logo.png", width=100)
 
 st.sidebar.title("🎯 Control")
 access = st.sidebar.selectbox("Access", ["Visitor", "Admin", "Super Admin"])
@@ -103,7 +98,6 @@ if is_admin:
         state["last_init"] = get_local_time()
         state["reset_count"] = state.get("reset_count", 0) + 1
         save_state(state)
-        # JavaScript hard refresh to clear browser ghosts
         st.markdown('<script>window.parent.location.reload();</script>', unsafe_allow_html=True)
         st.rerun()
 
@@ -142,17 +136,17 @@ elif state.get("winners"):
         st.header("🏆 Winners")
         for i, winner in enumerate(state["winners"]):
             st.subheader(f"#{i+1}: {winner}")
-            time.sleep(3.0) # Increased interval to 3 seconds
+            time.sleep(3.0) 
             st.snow()
         
         with st.expander("Entry List"):
             st.write(", ".join(state["participants"]))
 else:
-    # Welcome Screen optimized for mobile
+    # Welcome Screen: Header + Full Date/Time
     st.markdown(f"""
         <div class="welcome-container">
-            <h1>Welcome</h1>
-            <p style="font-size: 1.1rem; opacity: 0.8; margin-top: 5px;">{state.get('last_init', '')}</p>
+            <h1>Welcome to the draw</h1>
+            <p class="time-text">{state.get('last_init', '')}</p>
         </div>
     """, unsafe_allow_html=True)
     
