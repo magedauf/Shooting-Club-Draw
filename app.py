@@ -36,15 +36,45 @@ bg_opacity = state.get("bg_opacity", 0.5)
 
 st.markdown(f"""
     <style>
+    /* Main background color under the image: Black */
     .stApp {{
-        background: linear-gradient(rgba(255, 255, 255, {1 - bg_opacity}), rgba(255, 255, 255, {1 - bg_opacity})), 
+        background-color: #000000;
+        background: linear-gradient(rgba(0, 0, 0, {1 - bg_opacity}), rgba(0, 0, 0, {1 - bg_opacity})), 
                     url("{bg_url}");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
+        color: #ffffff;
     }}
+    
+    /* Sidebar color: Dark Grey */
     [data-testid="stSidebar"] {{
-        background-color: rgba(255, 255, 255, 0.85);
+        background-color: #2c2c2c;
+        color: #ffffff;
+    }}
+
+    /* Ensuring labels and text in sidebar are white */
+    [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {{
+        color: #ffffff !important;
+    }}
+
+    /* Styling the dropdowns and inputs for visibility */
+    div[data-baseweb="select"] > div {{
+        background-color: #3d3d3d;
+        color: white;
+    }}
+    
+    /* Styling info/success boxes for dark theme */
+    .stAlert {{
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }}
+
+    /* Header styling */
+    h1, h2, h3 {{
+        color: #ffffff !important;
+        text-shadow: 2px 2px 4px #000000;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -90,7 +120,7 @@ if is_admin:
                 state["is_drawing"] = True
                 save_state(state)
                 
-                # 2. Pick unique winners
+                # 2. Pick unique winners (random.sample avoids duplicates)
                 picked = random.sample(contestants, min(num_winners, len(contestants)))
                 
                 # 3. Save finalized list and stop drawing state
@@ -111,10 +141,10 @@ if state.get("is_drawing"):
 
 elif state["winners"]:
     st.header("🏆 The Official Winners")
-    # Sequential reveal for suspense
+    # Sequential reveal for suspense starting from Rank #1
     for i, winner in enumerate(state["winners"]):
         st.subheader(f"Rank #{i+1}: **{winner}**")
-        time.sleep(1.2) # Build excitement
+        time.sleep(1.2) # Suspension pause
         st.balloons()
     
     with st.expander("Show Entry List for this Round"):
