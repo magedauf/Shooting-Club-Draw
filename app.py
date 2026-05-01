@@ -17,7 +17,7 @@ def load_state():
                 return json.load(f)
             except:
                 pass
-    return {"winners": [], "bg_opacity": 0.12, "is_drawing": False, "participants": [], "last_init": "", "reset_count": 0}
+    return {"winners": [], "bg_opacity": 0.12, "is_drawing": False, "participants": [], "last_init": "", "reset_count": 0, "winners_shown_at": None}
 
 def save_state(state):
     with open(STATE_FILE, "w") as f:
@@ -117,6 +117,7 @@ is_admin = (access == "Admin" and pwd == "team_admin_2026") or is_super
 if is_admin:
     if st.sidebar.button("🔄 Initialize Draw"):
         state["winners"], state["participants"], state["is_drawing"] = [], [], False
+        state["winners_shown_at"] = None
         state["last_init"] = get_local_time()
         state["reset_count"] = state.get("reset_count", 0) + 1
         save_state(state)
@@ -156,12 +157,28 @@ if state.get("is_drawing"):
         st.rerun()
 
 elif state.get("winners"):
+    # Check if 60 seconds have passed since all winners were shown
+    winners_shown_at = state.get("winners_shown_at")
+    if winners_shown_at:
+        elapsed = time.time() - winners_shown_at
+        if elapsed >= 60:
+            state["winners"] = []
+            state["is_drawing"] = False
+            state["winners_shown_at"] = None
+            save_state(state)
+            st.rerun()
+
     with main_zone.container():
         st.header("🏆 Winners")
         for i, winner in enumerate(state["winners"]):
             st.subheader(f"#{i+1}: {winner}")
             time.sleep(3.0)
         # FIX 1: st.snow() removed — no more falling snowflakes
+
+        # Save timestamp after last winner is displayed (only once)
+        if not state.get("winners_shown_at"):
+            state["winners_shown_at"] = time.time()
+            save_state(state)
 
         with st.expander("Entry List"):
             st.write(", ".join(state["participants"]))
